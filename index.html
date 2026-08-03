@@ -1,14 +1,22 @@
 <!DOCTYPE html>
+
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Lista Compra</title>
+
+<link rel="icon" type="image/png" href="./favicon.png">
 <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
 <div class="app">
-<h1>🛒 Lista de la compra</h1>
+
+<div class="title-container">
+<img src="./favicon.png" alt="Carro de la compra" class="title-icon">
+<h1>Lista de la compra</h1>
+</div>
 
 <div class="toolbar">
 <input id="txtProduct" placeholder="Añadir producto">
@@ -21,10 +29,14 @@
 </div>
 
 <div id="list"></div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script src="supabase.js"></script>
+
 <script src="app.js"></script>
+
 </body>
 </html>
