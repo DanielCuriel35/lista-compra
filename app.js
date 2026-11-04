@@ -1,22 +1,28 @@
-const list = document.getElementById("list");
 const txt = document.getElementById("txtProduct");
+const composer = document.getElementById("composer");
+const listPending = document.getElementById("listPending");
+const listDone = document.getElementById("listDone");
+const emptyPending = document.getElementById("emptyPending");
+const doneSection = document.getElementById("doneSection");
 const pending = document.getElementById("pending");
 const done = document.getElementById("done");
-const btnAdd = document.getElementById("btnAdd");
+const summary = document.getElementById("summary");
+const progressBar = document.getElementById("progressBar");
 
 /* ---------- Usuarios ---------- */
 
 const USUARIOS = {
-    Daniel: "#f57c00", // naranja
-    Diego: "#d32f2f",  // rojo
-    Macu: "#7b1fa2",   // morado
-    Marina: "#e91e63"  // rosa
+    Daniel: "#EE7A1A", // naranja
+    Diego: "#D63A2F",  // rojo
+    Macu: "#7E3FB0",   // morado
+    Marina: "#E2508A"  // rosa
 };
 
 const login = document.getElementById("login");
 const userButtons = document.getElementById("userButtons");
-const currentUser = document.getElementById("currentUser");
 const btnChangeUser = document.getElementById("btnChangeUser");
+const chipAvatar = document.getElementById("chipAvatar");
+const chipName = document.getElementById("chipName");
 
 let usuario = null;
 
@@ -31,13 +37,18 @@ function escapar(texto) {
     return div.innerHTML;
 }
 
+function colorDe(nombre) {
+    return USUARIOS[nombre] || "#9C9087";
+}
+
 function etiquetaUsuario(nombre) {
     if (!nombre) return "";
-    const color = USUARIOS[nombre] || "#9e9e9e";
-    return `<span class="user-tag" style="background:${color}">${escapar(nombre)}</span>`;
+    return `<span class="user-tag" style="--c:${colorDe(nombre)}">${escapar(nombre)}</span>`;
 }
 
 function mostrarLogin() {
+    userButtons.querySelectorAll(".user-card").forEach(b =>
+        b.classList.toggle("active", b.dataset.nombre === usuario));
     login.classList.remove("hidden");
 }
 
@@ -45,14 +56,17 @@ function elegirUsuario(nombre) {
     usuario = nombre;
     try { localStorage.setItem("usuario", nombre); } catch (e) { }
     login.classList.add("hidden");
-    currentUser.innerHTML = `Eres ${etiquetaUsuario(nombre)}`;
-    txt.focus();
+    chipAvatar.textContent = nombre[0];
+    chipAvatar.style.setProperty("--c", colorDe(nombre));
+    chipName.textContent = nombre;
 }
 
-Object.entries(USUARIOS).forEach(([nombre, color]) => {
+Object.keys(USUARIOS).forEach(nombre => {
     const b = document.createElement("button");
-    b.textContent = nombre;
-    b.style.background = color;
+    b.className = "user-card";
+    b.dataset.nombre = nombre;
+    b.style.setProperty("--c", colorDe(nombre));
+    b.innerHTML = `<span class="avatar" style="--c:${colorDe(nombre)}">${nombre[0]}</span>${nombre}`;
     b.addEventListener("click", () => elegirUsuario(nombre));
     userButtons.appendChild(b);
 });
@@ -61,6 +75,34 @@ btnChangeUser.addEventListener("click", mostrarLogin);
 
 if (usuario) elegirUsuario(usuario);
 else mostrarLogin();
+
+/* ---------- Confirmación de borrado ---------- */
+
+const confirmBox = document.getElementById("confirm");
+const confirmText = document.getElementById("confirmText");
+
+function confirmar(texto) {
+    return new Promise(resolve => {
+        confirmText.innerHTML = texto;
+        confirmBox.classList.remove("hidden");
+
+        const cerrar = valor => {
+            confirmBox.classList.add("hidden");
+            confirmBox.onclick = null;
+            document.onkeydown = null;
+            resolve(valor);
+        };
+
+        document.getElementById("confirmYes").onclick = () => cerrar(true);
+        document.getElementById("confirmNo").onclick = () => cerrar(false);
+        confirmBox.onclick = e => { if (e.target === confirmBox) cerrar(false); };
+        document.onkeydown = e => { if (e.key === "Escape") cerrar(false); };
+    });
+}
+
+/* ---------- Lista ---------- */
+
+const ICONO_BORRAR = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>`;
 
 async function cargar() {
     const { data, error } = await client
@@ -77,51 +119,59 @@ async function cargar() {
     pintar(data || []);
 }
 
-function pintar(datos) {
-    list.innerHTML = "";
+function crearFila(prod) {
+    const row = document.createElement("li");
+    row.className = "item";
 
-    let pendientes = 0;
-    let comprados = 0;
+    row.innerHTML = `
+        <input type="checkbox" class="check" ${prod.comprado ? "checked" : ""}
+               aria-label="Marcar ${escapar(prod.nombre)}">
+        <span class="name">${escapar(prod.nombre)}</span>
+        ${etiquetaUsuario(prod.usuario)}
+        <button class="delete" aria-label="Eliminar ${escapar(prod.nombre)}">${ICONO_BORRAR}</button>
+    `;
 
-    datos.forEach(prod => {
+    const check = row.querySelector(".check");
 
-        if (prod.comprado)
-            comprados++;
-        else
-            pendientes++;
+    check.addEventListener("change", () => marcar(prod.id, check.checked));
 
-        const row = document.createElement("div");
-        row.className = "item";
-
-        row.innerHTML = `
-            <div class="left">
-                <input type="checkbox" ${prod.comprado ? "checked" : ""}>
-                <span class="${prod.comprado ? "done" : ""}">
-                    ${escapar(prod.nombre)}
-                </span>
-            </div>
-
-            <div class="right">
-                ${etiquetaUsuario(prod.usuario)}
-                <button class="delete">🗑️</button>
-            </div>
-        `;
-
-        row.querySelector("input").addEventListener("change", async () => {
-            await marcar(prod.id, !prod.comprado);
-        });
-
-        row.querySelector(".delete").addEventListener("click", async () => {
-            if (confirm(`¿Eliminar "${prod.nombre}"?`)) {
-                await borrar(prod.id);
-            }
-        });
-
-        list.appendChild(row);
+    // Tocar el nombre también marca/desmarca
+    row.querySelector(".name").addEventListener("click", () => {
+        check.checked = !check.checked;
+        marcar(prod.id, check.checked);
     });
 
-    pending.textContent = `Pendientes: ${pendientes}`;
-    done.textContent = `Comprados: ${comprados}`;
+    row.querySelector(".delete").addEventListener("click", async () => {
+        if (await confirmar(`¿Quitar <strong>${escapar(prod.nombre)}</strong> de la lista?`)) {
+            await borrar(prod.id);
+        }
+    });
+
+    return row;
+}
+
+function pintar(datos) {
+    const pendientes = datos.filter(p => !p.comprado);
+    const comprados = datos.filter(p => p.comprado);
+
+    listPending.replaceChildren(...pendientes.map(crearFila));
+    listDone.replaceChildren(...comprados.map(crearFila));
+
+    pending.textContent = pendientes.length;
+    done.textContent = comprados.length;
+
+    emptyPending.classList.toggle("hidden", pendientes.length > 0);
+    doneSection.classList.toggle("hidden", comprados.length === 0);
+
+    const total = datos.length;
+    progressBar.style.width = total ? `${(comprados.length / total) * 100}%` : "0";
+
+    if (!total)
+        summary.textContent = "Lista vacía";
+    else if (!pendientes.length)
+        summary.textContent = "¡Todo comprado! 🎉";
+    else
+        summary.textContent = `${pendientes.length} por comprar · ${comprados.length} en el carro`;
 }
 
 async function insertar() {
@@ -135,6 +185,8 @@ async function insertar() {
         return;
     }
 
+    txt.value = "";
+
     const { error } = await client
         .from("productos")
         .insert({
@@ -146,10 +198,9 @@ async function insertar() {
     if (error) {
         console.error(error);
         alert(error.message);
+        txt.value = nombre;
         return;
     }
-
-    txt.value = "";
 
     await cargar();
 }
@@ -166,7 +217,6 @@ async function marcar(id, valor) {
     if (error) {
         console.error(error);
         alert(error.message);
-        return;
     }
 
     await cargar();
@@ -188,12 +238,9 @@ async function borrar(id) {
     await cargar();
 }
 
-btnAdd.addEventListener("click", insertar);
-
-txt.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-        insertar();
-    }
+composer.addEventListener("submit", e => {
+    e.preventDefault();
+    insertar();
 });
 
 /*

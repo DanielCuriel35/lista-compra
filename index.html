@@ -3,47 +3,80 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#FBF6EE">
 <title>Lista Compra</title>
 
 <link rel="icon" type="image/png" href="./favicon.png">
+<link rel="apple-touch-icon" href="./favicon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+
 <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
 
 <!-- Pantalla de selección de usuario -->
-<div id="login" class="login hidden">
-<div class="login-box">
-<img src="./favicon.png" alt="Carro de la compra" class="title-icon">
-<h2>¿Quién eres?</h2>
-<div id="userButtons" class="user-buttons"></div>
+<div id="login" class="login hidden" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <div class="login-box">
+        <img src="./favicon.png" alt="Lista de la compra" class="logo logo-lg">
+        <h2 id="loginTitle">¿Quién eres?</h2>
+        <p class="login-sub">Así sabremos quién apunta cada cosa.</p>
+        <div id="userButtons" class="user-grid"></div>
+    </div>
 </div>
+
+<!-- Confirmación de borrado -->
+<div id="confirm" class="sheet-backdrop hidden">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="confirmText">
+        <p id="confirmText"></p>
+        <div class="sheet-actions">
+            <button id="confirmNo" class="btn btn-ghost">Cancelar</button>
+            <button id="confirmYes" class="btn btn-danger">Eliminar</button>
+        </div>
+    </div>
 </div>
 
 <div class="app">
 
-<div class="title-container">
-<img src="./favicon.png" alt="Carro de la compra" class="title-icon">
-<h1>Lista de la compra</h1>
-</div>
+    <header class="header">
+        <img src="./favicon.png" alt="Lista de la compra" class="logo">
+        <div class="header-text">
+            <h1>Lista de la compra</h1>
+            <p id="summary" class="summary">&nbsp;</p>
+        </div>
+        <button id="btnChangeUser" class="user-chip" title="Cambiar usuario">
+            <span id="chipAvatar" class="avatar"></span>
+            <span id="chipName"></span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+    </header>
 
-<div class="current-user">
-<span id="currentUser"></span>
-<button id="btnChangeUser" class="link-button">Cambiar usuario</button>
-</div>
+    <form id="composer" class="composer" autocomplete="off">
+        <input id="txtProduct" placeholder="¿Qué hace falta?" enterkeyhint="done" autocapitalize="sentences" aria-label="Añadir producto">
+        <button id="btnAdd" type="submit" class="add" aria-label="Añadir">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+    </form>
 
-<div class="toolbar">
-<input id="txtProduct" placeholder="Añadir producto">
-<button id="btnAdd">Añadir</button>
-</div>
+    <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
 
-<div class="stats">
-<span id="pending"></span>
-<span id="done"></span>
-</div>
+    <section>
+        <h3 class="section-title">Por comprar <span id="pending" class="count"></span></h3>
+        <ul id="listPending" class="list"></ul>
+        <div id="emptyPending" class="empty hidden">
+            <span class="empty-emoji">🧺</span>
+            <p>No falta nada. Apunta lo primero que se acabe.</p>
+        </div>
+    </section>
 
-<div id="list"></div>
+    <section id="doneSection" class="section-done hidden">
+        <h3 class="section-title">En el carro <span id="done" class="count"></span></h3>
+        <ul id="listDone" class="list list-done"></ul>
+    </section>
 
 </div>
 
