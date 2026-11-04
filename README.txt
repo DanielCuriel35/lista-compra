@@ -10,3 +10,10 @@ create table productos(
 
 3. Permite SELECT, INSERT, UPDATE y DELETE mediante políticas RLS para pruebas.
 
+
+4. Columna de usuario (quién añadió cada producto). Ejecuta en el SQL Editor de Supabase:
+
+alter table productos add column if not exists usuario text;
+
+Los usuarios y sus colores están en app.js (constante USUARIOS):
+Daniel naranja, Diego rojo, Macu morado, Marina rosa.

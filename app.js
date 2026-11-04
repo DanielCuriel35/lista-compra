@@ -4,6 +4,64 @@ const pending = document.getElementById("pending");
 const done = document.getElementById("done");
 const btnAdd = document.getElementById("btnAdd");
 
+/* ---------- Usuarios ---------- */
+
+const USUARIOS = {
+    Daniel: "#f57c00", // naranja
+    Diego: "#d32f2f",  // rojo
+    Macu: "#7b1fa2",   // morado
+    Marina: "#e91e63"  // rosa
+};
+
+const login = document.getElementById("login");
+const userButtons = document.getElementById("userButtons");
+const currentUser = document.getElementById("currentUser");
+const btnChangeUser = document.getElementById("btnChangeUser");
+
+let usuario = null;
+
+try {
+    const guardado = localStorage.getItem("usuario");
+    if (guardado && USUARIOS[guardado]) usuario = guardado;
+} catch (e) { }
+
+function escapar(texto) {
+    const div = document.createElement("div");
+    div.textContent = texto ?? "";
+    return div.innerHTML;
+}
+
+function etiquetaUsuario(nombre) {
+    if (!nombre) return "";
+    const color = USUARIOS[nombre] || "#9e9e9e";
+    return `<span class="user-tag" style="background:${color}">${escapar(nombre)}</span>`;
+}
+
+function mostrarLogin() {
+    login.classList.remove("hidden");
+}
+
+function elegirUsuario(nombre) {
+    usuario = nombre;
+    try { localStorage.setItem("usuario", nombre); } catch (e) { }
+    login.classList.add("hidden");
+    currentUser.innerHTML = `Eres ${etiquetaUsuario(nombre)}`;
+    txt.focus();
+}
+
+Object.entries(USUARIOS).forEach(([nombre, color]) => {
+    const b = document.createElement("button");
+    b.textContent = nombre;
+    b.style.background = color;
+    b.addEventListener("click", () => elegirUsuario(nombre));
+    userButtons.appendChild(b);
+});
+
+btnChangeUser.addEventListener("click", mostrarLogin);
+
+if (usuario) elegirUsuario(usuario);
+else mostrarLogin();
+
 async function cargar() {
     const { data, error } = await client
         .from("productos")
@@ -39,11 +97,14 @@ function pintar(datos) {
             <div class="left">
                 <input type="checkbox" ${prod.comprado ? "checked" : ""}>
                 <span class="${prod.comprado ? "done" : ""}">
-                    ${prod.nombre}
+                    ${escapar(prod.nombre)}
                 </span>
             </div>
 
-            <button class="delete">🗑️</button>
+            <div class="right">
+                ${etiquetaUsuario(prod.usuario)}
+                <button class="delete">🗑️</button>
+            </div>
         `;
 
         row.querySelector("input").addEventListener("change", async () => {
@@ -69,11 +130,17 @@ async function insertar() {
 
     if (!nombre) return;
 
+    if (!usuario) {
+        mostrarLogin();
+        return;
+    }
+
     const { error } = await client
         .from("productos")
         .insert({
             nombre: nombre,
-            comprado: false
+            comprado: false,
+            usuario: usuario
         });
 
     if (error) {

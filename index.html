@@ -11,11 +11,26 @@
 </head>
 
 <body>
+
+<!-- Pantalla de selección de usuario -->
+<div id="login" class="login hidden">
+<div class="login-box">
+<img src="./favicon.png" alt="Carro de la compra" class="title-icon">
+<h2>¿Quién eres?</h2>
+<div id="userButtons" class="user-buttons"></div>
+</div>
+</div>
+
 <div class="app">
 
 <div class="title-container">
 <img src="./favicon.png" alt="Carro de la compra" class="title-icon">
 <h1>Lista de la compra</h1>
+</div>
+
+<div class="current-user">
+<span id="currentUser"></span>
+<button id="btnChangeUser" class="link-button">Cambiar usuario</button>
 </div>
 
 <div class="toolbar">
