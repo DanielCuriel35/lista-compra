@@ -46,6 +46,55 @@ function etiquetaSuper(id) {
     return `<span class="super-tag" style="--c:${s.color}">${s.nombre}</span>`;
 }
 
+/* ---------- Filtro por supermercado ---------- */
+
+const filters = document.getElementById("filters");
+const emptyText = document.getElementById("emptyText");
+
+let filtro = "todos";
+let ultimosDatos = [];
+
+try {
+    const filtroGuardado = localStorage.getItem("filtro");
+    if (SUPERMERCADOS[filtroGuardado]) filtro = filtroGuardado;
+} catch (e) { }
+
+// Los productos antiguos sin supermercado cuentan como "Otros"
+function superDe(prod) {
+    return SUPERMERCADOS[prod.supermercado] ? prod.supermercado : "otros";
+}
+
+function pintarFiltros() {
+    const opciones = [["todos", { nombre: "Todos", color: "var(--accent)" }], ...Object.entries(SUPERMERCADOS)];
+    const pendientesDe = id => ultimosDatos.filter(p =>
+        !p.comprado && (id === "todos" || superDe(p) === id)).length;
+
+    filters.replaceChildren(...opciones.map(([id, s]) => {
+        const b = document.createElement("button");
+        b.className = "filter" + (filtro === id ? " active" : "");
+        b.style.setProperty("--c", s.color);
+        b.setAttribute("aria-pressed", filtro === id);
+        const n = pendientesDe(id);
+        b.innerHTML = `${s.nombre}${n ? `<span class="filter-count">${n}</span>` : ""}`;
+        b.addEventListener("click", () => elegirFiltro(id));
+        return b;
+    }));
+}
+
+function elegirFiltro(id) {
+    filtro = id;
+    try { localStorage.setItem("filtro", id); } catch (e) { }
+
+    // Si filtras por un súper, lo nuevo que añadas va a ese súper
+    if (id !== "todos") {
+        selSuper.value = id;
+        pintarSelect();
+        try { localStorage.setItem("supermercado", id); } catch (e) { }
+    }
+
+    pintar(ultimosDatos);
+}
+
 /* ---------- Usuarios ---------- */
 
 const USUARIOS = {
@@ -187,7 +236,16 @@ function crearFila(prod) {
     return row;
 }
 
-function pintar(datos) {
+function pintar(todos) {
+    ultimosDatos = todos;
+    pintarFiltros();
+
+    const datos = filtro === "todos" ? todos : todos.filter(p => superDe(p) === filtro);
+
+    emptyText.textContent = filtro === "todos"
+        ? "No falta nada. Apunta lo primero que se acabe."
+        : `No falta nada del ${SUPERMERCADOS[filtro].nombre}.`;
+
     const pendientes = datos.filter(p => !p.comprado);
     const comprados = datos.filter(p => p.comprado);
 
