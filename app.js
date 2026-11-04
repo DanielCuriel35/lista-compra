@@ -9,6 +9,43 @@ const done = document.getElementById("done");
 const summary = document.getElementById("summary");
 const progressBar = document.getElementById("progressBar");
 
+/* ---------- Supermercados ---------- */
+
+const SUPERMERCADOS = {
+    lidl: { nombre: "Lidl", color: "#0050AA" },
+    mercadona: { nombre: "Mercadona", color: "#00804A" },
+    otros: { nombre: "Otros", color: "#8A8079" }
+};
+
+const selSuper = document.getElementById("selSuper");
+
+Object.entries(SUPERMERCADOS).forEach(([id, s]) => {
+    selSuper.add(new Option(s.nombre, id));
+});
+
+try {
+    const superGuardado = localStorage.getItem("supermercado");
+    if (SUPERMERCADOS[superGuardado]) selSuper.value = superGuardado;
+} catch (e) { }
+
+function pintarSelect() {
+    selSuper.parentElement.style.setProperty("--c", SUPERMERCADOS[selSuper.value].color);
+}
+
+selSuper.addEventListener("change", () => {
+    pintarSelect();
+    try { localStorage.setItem("supermercado", selSuper.value); } catch (e) { }
+    txt.focus();
+});
+
+pintarSelect();
+
+function etiquetaSuper(id) {
+    const s = SUPERMERCADOS[id];
+    if (!s) return "";
+    return `<span class="super-tag" style="--c:${s.color}">${s.nombre}</span>`;
+}
+
 /* ---------- Usuarios ---------- */
 
 const USUARIOS = {
@@ -126,7 +163,7 @@ function crearFila(prod) {
     row.innerHTML = `
         <input type="checkbox" class="check" ${prod.comprado ? "checked" : ""}
                aria-label="Marcar ${escapar(prod.nombre)}">
-        <span class="name">${escapar(prod.nombre)}</span>
+        <span class="name">${escapar(prod.nombre)}${etiquetaSuper(prod.supermercado)}</span>
         ${etiquetaUsuario(prod.usuario)}
         <button class="delete" aria-label="Eliminar ${escapar(prod.nombre)}">${ICONO_BORRAR}</button>
     `;
@@ -192,7 +229,8 @@ async function insertar() {
         .insert({
             nombre: nombre,
             comprado: false,
-            usuario: usuario
+            usuario: usuario,
+            supermercado: selSuper.value
         });
 
     if (error) {

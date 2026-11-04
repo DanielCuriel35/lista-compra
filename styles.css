@@ -190,6 +190,52 @@ button {
     transform: scale(.92)
 }
 
+.super-select {
+    --c: var(--muted);
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    color: var(--c)
+}
+
+.super-select select {
+    appearance: none;
+    -webkit-appearance: none;
+    height: 38px;
+    padding: 0 28px 0 26px;
+    border: none;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--c) 11%, white);
+    color: var(--c);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    transition: background .15s, color .15s
+}
+
+.super-select select:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 25%, white)
+}
+
+.super-select::before {
+    content: "";
+    position: absolute;
+    left: 11px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--c);
+    pointer-events: none
+}
+
+.super-select svg {
+    position: absolute;
+    right: 11px;
+    pointer-events: none
+}
+
 /* ---------- Progreso ---------- */
 
 .progress {
@@ -335,9 +381,30 @@ button {
     cursor: pointer
 }
 
+.super-tag {
+    --c: var(--muted);
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 7px;
+    border: 1.5px solid color-mix(in srgb, var(--c) 35%, white);
+    border-radius: 6px;
+    color: var(--c);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    vertical-align: 2px;
+    white-space: nowrap
+}
+
+.list-done .super-tag {
+    opacity: .5
+}
+
 .list-done .name {
     color: var(--muted);
     text-decoration: line-through;
+    text-decoration-skip-ink: auto;
     text-decoration-color: #C9BDB0;
     font-weight: 400
 }
