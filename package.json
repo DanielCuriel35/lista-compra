@@ -1,0 +1,11 @@
+{
+  "name": "lista-compra",
+  "private": true,
+  "description": "Lista de la compra (web estática + funciones de Vercel para los avisos)",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "web-push": "3.6.7"
+  }
+}

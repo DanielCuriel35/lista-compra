@@ -39,3 +39,32 @@ create policy "registros_insert" on registros for insert with check (true);
 
 -- Opcional: que la pestaña Registros se actualice sola en todos los móviles
 alter publication supabase_realtime add table registros;
+
+7. Avisos "Estoy en..." (notificaciones push)
+
+7.1 SQL en Supabase:
+
+create table if not exists suscripciones (
+ endpoint text primary key,
+ usuario text not null,
+ suscripcion jsonb not null,
+ updated_at timestamptz not null default now()
+);
+
+alter table suscripciones enable row level security;
+-- Sin políticas a propósito: solo las funciones de Vercel (con la clave
+-- service_role) pueden leer y escribir esta tabla. El navegador no la ve.
+
+7.2 Variables de entorno en Vercel (Project → Settings → Environment Variables):
+
+SUPABASE_URL               https://raforfyswzxkvqgnglxn.supabase.co
+SUPABASE_SERVICE_ROLE_KEY  Supabase → Project Settings → API Keys → clave "secret" / "service_role"
+VAPID_PUBLIC_KEY           (clave pública de los avisos)
+VAPID_PRIVATE_KEY          (clave privada de los avisos, ¡secreta!)
+VAPID_SUBJECT              opcional, p. ej. mailto:tu-correo@ejemplo.com
+
+Para generar un par de claves VAPID nuevo:  npx web-push generate-vapid-keys
+Después de añadir o cambiar variables hay que volver a desplegar.
+
+7.3 Cada persona pulsa "Activa los avisos en este móvil" una vez.
+En iPhone primero hay que añadir la web a la pantalla de inicio y abrirla desde ese icono.
