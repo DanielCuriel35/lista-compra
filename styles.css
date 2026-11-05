@@ -806,6 +806,64 @@ button {
     white-space: nowrap
 }
 
+.reg-acciones {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 18px
+}
+
+.reg-acciones:empty {
+    display: none
+}
+
+.btn-reg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    height: 50px;
+    border: 1.5px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 15px;
+    font-weight: 600;
+    transition: transform .15s, background .15s
+}
+
+.btn-reg svg {
+    color: var(--accent);
+    flex-shrink: 0
+}
+
+.btn-reg:active {
+    transform: scale(.98)
+}
+
+.btn-reg-main {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: #fff;
+    box-shadow: 0 8px 20px -10px rgba(43, 36, 32, .6)
+}
+
+.btn-reg-n {
+    min-width: 22px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-dark);
+    font-size: 12px;
+    line-height: 20px
+}
+
+.btn-reg-main .btn-reg-n {
+    background: rgba(255, 255, 255, .18);
+    color: #fff
+}
+
 /* ---------- Aviso ---------- */
 
 .toast {

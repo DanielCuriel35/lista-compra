@@ -313,6 +313,12 @@ async function insertar() {
     }
 
     await cargar();
+
+    // Si alguien está ahora en ese súper, le avisamos (no bloquea si falla)
+    api("/api/avisar", {
+        method: "POST",
+        body: JSON.stringify({ tipo: "anadido", usuario, nombre, supermercado: selSuper.value })
+    }).catch(e => console.error(e));
 }
 
 async function marcar(id, valor) {
@@ -465,6 +471,12 @@ async function compraHecha() {
 
     await cargar();
     avisar("Compra guardada en Registros");
+
+    // Quien ha hecho la compra deja de constar como "en el súper"
+    api("/api/avisar", {
+        method: "POST",
+        body: JSON.stringify({ tipo: "fin", usuario })
+    }).catch(e => console.error(e));
 }
 
 btnCompraHecha.addEventListener("click", compraHecha);
@@ -611,10 +623,90 @@ function pintarDetalle() {
         return li;
     }));
 
+    pintarAccionesRegistro(visibles);
+
     regVacio.classList.toggle("hidden", visibles.length > 0);
     regVacioText.textContent = filtroRegistro === "todos"
         ? "Esta compra no tiene productos."
         : `En esta compra no hubo nada del ${SUPERMERCADOS[filtroRegistro].nombre}.`;
+}
+
+/* ---------- Volver a apuntar desde Registros ---------- */
+
+const regAcciones = document.getElementById("regAcciones");
+
+function pintarAccionesRegistro(visibles) {
+    const noComprados = visibles.filter(p => !p.comprado);
+    const enFiltro = filtroRegistro === "todos" ? "" : ` del ${SUPERMERCADOS[filtroRegistro].nombre}`;
+    const botones = [];
+
+    if (noComprados.length) {
+        const b = document.createElement("button");
+        b.className = "btn-reg btn-reg-main";
+        b.innerHTML = `${ICONO_REPETIR}Apuntar lo no comprado${enFiltro} <span class="btn-reg-n">${noComprados.length}</span>`;
+        b.addEventListener("click", () => volverAApuntar(noComprados));
+        botones.push(b);
+    }
+
+    if (visibles.length) {
+        const b = document.createElement("button");
+        b.className = "btn-reg";
+        b.innerHTML = `${ICONO_REPETIR}Repetir ${filtroRegistro === "todos" ? "toda la compra" : `todo lo${enFiltro}`} <span class="btn-reg-n">${visibles.length}</span>`;
+        b.addEventListener("click", () => volverAApuntar(visibles));
+        botones.push(b);
+    }
+
+    regAcciones.replaceChildren(...botones);
+}
+
+const ICONO_REPETIR = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M8 16H3v5"/></svg>`;
+
+function normalizar(nombre) {
+    return String(nombre || "").trim().toLowerCase();
+}
+
+async function volverAApuntar(productos) {
+    if (!usuario) {
+        mostrarLogin();
+        return;
+    }
+
+    // No duplicamos lo que ya está pendiente en la lista
+    const yaEnLista = new Set(ultimosDatos.filter(p => !p.comprado).map(p => normalizar(p.nombre)));
+    const vistos = new Set();
+    const nuevos = [];
+
+    for (const p of productos) {
+        const clave = normalizar(p.nombre);
+        if (!clave || yaEnLista.has(clave) || vistos.has(clave)) continue;
+        vistos.add(clave);
+        nuevos.push({
+            nombre: p.nombre,
+            comprado: false,
+            usuario: p.usuario || usuario,
+            supermercado: p.supermercado || null
+        });
+    }
+
+    const repetidos = productos.length - nuevos.length;
+
+    if (!nuevos.length) {
+        avisar(productos.length === 1 ? "Ya está en la lista" : "Ya está todo en la lista");
+        return;
+    }
+
+    const { error } = await client.from("productos").insert(nuevos);
+
+    if (error) {
+        console.error(error);
+        alert(error.message);
+        return;
+    }
+
+    await cargar();
+    cambiarPestana("lista");
+    avisar(`${nuevos.length} ${nuevos.length === 1 ? "producto añadido" : "productos añadidos"}` +
+        (repetidos ? ` · ${repetidos} ya ${repetidos === 1 ? "estaba" : "estaban"}` : ""));
 }
 
 /*
@@ -775,7 +867,7 @@ async function enviarEstoyEn() {
     try {
         const { enviados } = await api("/api/avisar", {
             method: "POST",
-            body: JSON.stringify({ usuario, supermercado })
+            body: JSON.stringify({ tipo: "estoy", usuario, supermercado })
         });
 
         avisar(enviados
