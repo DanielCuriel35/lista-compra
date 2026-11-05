@@ -68,3 +68,18 @@ Después de añadir o cambiar variables hay que volver a desplegar.
 
 7.3 Cada persona pulsa "Activa los avisos en este móvil" una vez.
 En iPhone primero hay que añadir la web a la pantalla de inicio y abrirla desde ese icono.
+
+8. Aviso "X ha añadido..." a quien está en el súper. SQL en Supabase:
+
+create table if not exists estoy_en (
+ usuario text primary key,
+ supermercado text not null,
+ desde timestamptz not null default now()
+);
+
+alter table estoy_en enable row level security;
+-- Sin políticas: solo la usan las funciones de Vercel.
+
+Funciona así: al pulsar "Avisar" quedas apuntado como "en el <súper>" durante
+30 minutos (o hasta que pulses "Compra hecha"). Si en ese tiempo alguien apunta
+algo de ese súper, te llega un aviso.
