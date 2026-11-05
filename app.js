@@ -150,6 +150,7 @@ function elegirUsuario(nombre) {
     chipAvatar.textContent = nombre[0];
     chipAvatar.style.setProperty("--c", colorDe(nombre));
     chipName.textContent = nombre;
+    sincronizarSuscripcion();
 }
 
 Object.keys(USUARIOS).forEach(nombre => {
@@ -642,5 +643,169 @@ client
         () => { if (pestana === "registros") cargarRegistros(); }
     )
     .subscribe();
+
+/* ---------- Avisos "Estoy en..." ---------- */
+
+const selEstoy = document.getElementById("selEstoy");
+const btnAvisar = document.getElementById("btnAvisar");
+const avisosEstado = document.getElementById("avisosEstado");
+
+const PUSH_SOPORTADO = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+const ES_IOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const ES_APP = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+
+var swReg = null; // "var": puede consultarse antes de llegar a esta línea
+
+Object.entries(SUPERMERCADOS).forEach(([id, s]) => selEstoy.add(new Option(s.nombre, id)));
+
+try {
+    const estoyGuardado = localStorage.getItem("estoyEn");
+    if (SUPERMERCADOS[estoyGuardado]) selEstoy.value = estoyGuardado;
+} catch (e) { }
+
+function pintarEstoy() {
+    selEstoy.parentElement.style.setProperty("--c", SUPERMERCADOS[selEstoy.value].color);
+}
+
+selEstoy.addEventListener("change", () => {
+    pintarEstoy();
+    try { localStorage.setItem("estoyEn", selEstoy.value); } catch (e) { }
+});
+
+pintarEstoy();
+
+function base64AUint8(base64) {
+    const relleno = "=".repeat((4 - base64.length % 4) % 4);
+    const crudo = atob((base64 + relleno).replace(/-/g, "+").replace(/_/g, "/"));
+    return Uint8Array.from(crudo, c => c.charCodeAt(0));
+}
+
+async function api(ruta, opciones = {}) {
+    const res = await fetch(ruta, {
+        ...opciones,
+        headers: { "Content-Type": "application/json", ...(opciones.headers || {}) }
+    });
+    let datos = {};
+    try { datos = await res.json(); } catch (e) { }
+    if (!res.ok) throw new Error(datos.error || `Error ${res.status}`);
+    return datos;
+}
+
+async function suscripcionActual() {
+    return swReg ? swReg.pushManager.getSubscription() : null;
+}
+
+// Guarda en el servidor que este móvil es de "usuario"
+async function sincronizarSuscripcion() {
+    try {
+        const sub = await suscripcionActual();
+        if (!sub || !usuario) return;
+        await api("/api/suscribir", {
+            method: "POST",
+            body: JSON.stringify({ usuario, suscripcion: sub.toJSON() })
+        });
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function pintarEstadoAvisos() {
+    let html = "";
+
+    if (!PUSH_SOPORTADO) {
+        html = ES_IOS && !ES_APP
+            ? "Para recibir avisos en iPhone, añade la web a la pantalla de inicio (Compartir → Añadir a pantalla de inicio) y ábrela desde ahí."
+            : "Este navegador no puede recibir avisos.";
+    } else if (Notification.permission === "denied") {
+        html = "Los avisos están bloqueados en este navegador. Actívalos en los ajustes del sitio para recibirlos.";
+    } else if (!await suscripcionActual()) {
+        html = `<button id="btnActivarAvisos" class="link-activar">Activa los avisos en este móvil</button> para enterarte cuando alguien esté en el súper.`;
+    }
+
+    avisosEstado.innerHTML = html;
+    avisosEstado.classList.toggle("hidden", !html);
+
+    const btn = document.getElementById("btnActivarAvisos");
+    if (btn) btn.addEventListener("click", activarAvisos);
+}
+
+async function activarAvisos() {
+    if (!usuario) {
+        mostrarLogin();
+        return;
+    }
+
+    try {
+        const permiso = await Notification.requestPermission();
+        if (permiso !== "granted") {
+            await pintarEstadoAvisos();
+            return;
+        }
+
+        const { publicKey } = await api("/api/suscribir");
+
+        const sub = await swReg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: base64AUint8(publicKey)
+        });
+
+        await api("/api/suscribir", {
+            method: "POST",
+            body: JSON.stringify({ usuario, suscripcion: sub.toJSON() })
+        });
+
+        avisar("Avisos activados en este móvil");
+    } catch (e) {
+        console.error(e);
+        alert(`No se pudieron activar los avisos: ${e.message}`);
+    }
+
+    await pintarEstadoAvisos();
+}
+
+async function enviarEstoyEn() {
+    if (!usuario) {
+        mostrarLogin();
+        return;
+    }
+
+    const supermercado = selEstoy.value;
+    btnAvisar.disabled = true;
+
+    try {
+        const { enviados } = await api("/api/avisar", {
+            method: "POST",
+            body: JSON.stringify({ usuario, supermercado })
+        });
+
+        avisar(enviados
+            ? `Aviso enviado a ${enviados} ${enviados === 1 ? "móvil" : "móviles"}`
+            : "Nadie más tiene los avisos activados todavía");
+
+        // Evita mandar el mismo aviso varias veces seguidas sin querer
+        setTimeout(() => { btnAvisar.disabled = false; }, 20000);
+    } catch (e) {
+        console.error(e);
+        alert(`No se pudo enviar el aviso: ${e.message}`);
+        btnAvisar.disabled = false;
+    }
+}
+
+btnAvisar.addEventListener("click", enviarEstoyEn);
+
+async function iniciarAvisos() {
+    if ("serviceWorker" in navigator) {
+        try {
+            swReg = await navigator.serviceWorker.register("sw.js");
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    await pintarEstadoAvisos();
+    sincronizarSuscripcion();
+}
+
+iniciarAvisos();
 
 cargar();
