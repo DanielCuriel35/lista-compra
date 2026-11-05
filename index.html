@@ -29,7 +29,7 @@
     </div>
 </div>
 
-<!-- Confirmación de borrado -->
+<!-- Confirmación -->
 <div id="confirm" class="sheet-backdrop hidden">
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="confirmText">
         <p id="confirmText"></p>
@@ -54,6 +54,13 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
         </button>
     </header>
+
+    <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="lista" role="tab" aria-selected="true">Lista</button>
+        <button class="tab" data-tab="registros" role="tab" aria-selected="false">Registros</button>
+    </nav>
+
+    <div id="viewLista">
 
     <form id="composer" class="composer" autocomplete="off">
         <input id="txtProduct" placeholder="¿Qué hace falta?" enterkeyhint="done" autocapitalize="sentences" aria-label="Añadir producto">
@@ -84,7 +91,41 @@
         <ul id="listDone" class="list list-done"></ul>
     </section>
 
+    <button id="btnCompraHecha" class="btn-compra hidden">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        Compra hecha
+    </button>
+
+    </div>
+
+    <!-- Registros -->
+    <div id="viewRegistros" class="hidden">
+
+        <div id="registrosLista">
+            <ul id="registros" class="registros"></ul>
+            <div id="registrosVacio" class="empty hidden">
+                <span class="empty-emoji">🧾</span>
+                <p>Aún no hay compras guardadas. Cuando termines una compra, pulsa <strong>Compra hecha</strong> en la lista.</p>
+            </div>
+        </div>
+
+        <div id="registroDetalle" class="hidden">
+            <button id="btnVolver" class="back">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                Registros
+            </button>
+            <h2 id="detalleFecha" class="detalle-fecha"></h2>
+            <p id="detalleInfo" class="detalle-info"></p>
+            <div id="regFilters" class="filters" role="group" aria-label="Filtrar por supermercado"></div>
+            <ul id="regItems" class="list reg-items"></ul>
+            <div id="regVacio" class="empty hidden"><p id="regVacioText"></p></div>
+        </div>
+
+    </div>
+
 </div>
+
+<div id="toast" class="toast hidden" role="status"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 

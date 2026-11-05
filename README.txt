@@ -23,3 +23,19 @@ Daniel naranja, Diego rojo, Macu morado, Marina rosa.
 alter table productos add column if not exists supermercado text;
 
 Los supermercados y sus colores están en app.js (constante SUPERMERCADOS).
+
+6. Registros de compras (botón "Compra hecha" y pestaña Registros). Ejecuta en el SQL Editor de Supabase:
+
+create table if not exists registros (
+ id uuid primary key default gen_random_uuid(),
+ created_at timestamptz not null default now(),
+ usuario text,
+ productos jsonb not null default '[]'::jsonb
+);
+
+alter table registros enable row level security;
+create policy "registros_select" on registros for select using (true);
+create policy "registros_insert" on registros for insert with check (true);
+
+-- Opcional: que la pestaña Registros se actualice sola en todos los móviles
+alter publication supabase_realtime add table registros;

@@ -64,21 +64,26 @@ function superDe(prod) {
     return SUPERMERCADOS[prod.supermercado] ? prod.supermercado : "otros";
 }
 
-function pintarFiltros() {
+// Pinta las pastillas Todos / Lidl / Mercadona / Otros en un contenedor
+function crearFiltros(contenedor, activo, contar, alElegir) {
     const opciones = [["todos", { nombre: "Todos", color: "var(--accent)" }], ...Object.entries(SUPERMERCADOS)];
-    const pendientesDe = id => ultimosDatos.filter(p =>
-        !p.comprado && (id === "todos" || superDe(p) === id)).length;
 
-    filters.replaceChildren(...opciones.map(([id, s]) => {
+    contenedor.replaceChildren(...opciones.map(([id, s]) => {
         const b = document.createElement("button");
-        b.className = "filter" + (filtro === id ? " active" : "");
+        b.className = "filter" + (activo === id ? " active" : "");
         b.style.setProperty("--c", s.color);
-        b.setAttribute("aria-pressed", filtro === id);
-        const n = pendientesDe(id);
+        b.setAttribute("aria-pressed", activo === id);
+        const n = contar(id);
         b.innerHTML = `${s.nombre}${n ? `<span class="filter-count">${n}</span>` : ""}`;
-        b.addEventListener("click", () => elegirFiltro(id));
+        b.addEventListener("click", () => alElegir(id));
         return b;
     }));
+}
+
+function pintarFiltros() {
+    crearFiltros(filters, filtro,
+        id => ultimosDatos.filter(p => !p.comprado && (id === "todos" || superDe(p) === id)).length,
+        elegirFiltro);
 }
 
 function elegirFiltro(id) {
@@ -162,14 +167,17 @@ btnChangeUser.addEventListener("click", mostrarLogin);
 if (usuario) elegirUsuario(usuario);
 else mostrarLogin();
 
-/* ---------- Confirmación de borrado ---------- */
+/* ---------- Confirmación ---------- */
 
 const confirmBox = document.getElementById("confirm");
 const confirmText = document.getElementById("confirmText");
+const confirmYes = document.getElementById("confirmYes");
 
-function confirmar(texto) {
+function confirmar(texto, { si = "Eliminar", clase = "btn-danger" } = {}) {
     return new Promise(resolve => {
         confirmText.innerHTML = texto;
+        confirmYes.textContent = si;
+        confirmYes.className = `btn ${clase}`;
         confirmBox.classList.remove("hidden");
 
         const cerrar = valor => {
@@ -179,7 +187,7 @@ function confirmar(texto) {
             resolve(valor);
         };
 
-        document.getElementById("confirmYes").onclick = () => cerrar(true);
+        confirmYes.onclick = () => cerrar(true);
         document.getElementById("confirmNo").onclick = () => cerrar(false);
         confirmBox.onclick = e => { if (e.target === confirmBox) cerrar(false); };
         document.onkeydown = e => { if (e.key === "Escape") cerrar(false); };
@@ -261,6 +269,11 @@ function pintar(todos) {
     const total = datos.length;
     progressBar.style.width = total ? `${(comprados.length / total) * 100}%` : "0";
 
+    btnCompraHecha.classList.toggle("hidden", todos.length === 0);
+
+    if (pestana !== "lista")
+        return;
+
     if (!total)
         summary.textContent = "Lista vacía";
     else if (!pendientes.length)
@@ -339,6 +352,270 @@ composer.addEventListener("submit", e => {
     insertar();
 });
 
+/* ---------- Pestañas ---------- */
+
+const viewLista = document.getElementById("viewLista");
+const viewRegistros = document.getElementById("viewRegistros");
+const tabs = document.querySelectorAll(".tab");
+
+let pestana = "lista";
+
+function cambiarPestana(nombre) {
+    pestana = nombre;
+
+    tabs.forEach(t => {
+        const activa = t.dataset.tab === nombre;
+        t.classList.toggle("active", activa);
+        t.setAttribute("aria-selected", activa);
+    });
+
+    viewLista.classList.toggle("hidden", nombre !== "lista");
+    viewRegistros.classList.toggle("hidden", nombre !== "registros");
+
+    if (nombre === "lista") {
+        pintar(ultimosDatos);
+    } else {
+        cerrarDetalle();
+        cargarRegistros();
+    }
+
+    window.scrollTo(0, 0);
+}
+
+tabs.forEach(t => t.addEventListener("click", () => cambiarPestana(t.dataset.tab)));
+
+/* ---------- Aviso breve ---------- */
+
+const toast = document.getElementById("toast");
+let toastTimer;
+
+function avisar(texto) {
+    toast.textContent = texto;
+    toast.classList.remove("hidden");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.add("hidden"), 2600);
+}
+
+/* ---------- Compra hecha ---------- */
+
+const btnCompraHecha = document.getElementById("btnCompraHecha");
+
+async function compraHecha() {
+
+    if (!usuario) {
+        mostrarLogin();
+        return;
+    }
+
+    // Leemos la lista actual de la base de datos para no perder nada
+    const { data: productos, error: errorLeer } = await client
+        .from("productos")
+        .select("*")
+        .order("created_at", { ascending: true });
+
+    if (errorLeer) {
+        console.error(errorLeer);
+        alert(errorLeer.message);
+        return;
+    }
+
+    if (!productos.length) return;
+
+    const sinMarcar = productos.filter(p => !p.comprado).length;
+    const plural = n => n === 1 ? "producto" : "productos";
+
+    let texto = `¿Compra hecha? Se guardarán <strong>${productos.length} ${plural(productos.length)}</strong> en Registros y la lista quedará vacía.`;
+    if (sinMarcar)
+        texto += `<br><span class="sheet-note">${sinMarcar === 1
+            ? "1 producto sin marcar se guardará como no comprado."
+            : `${sinMarcar} productos sin marcar se guardarán como no comprados.`}</span>`;
+
+    if (!await confirmar(texto, { si: "Compra hecha", clase: "btn-primary" }))
+        return;
+
+    const { error: errorGuardar } = await client
+        .from("registros")
+        .insert({
+            usuario: usuario,
+            productos: productos.map(p => ({
+                nombre: p.nombre,
+                supermercado: p.supermercado || null,
+                usuario: p.usuario || null,
+                comprado: !!p.comprado
+            }))
+        });
+
+    if (errorGuardar) {
+        console.error(errorGuardar);
+        alert(errorGuardar.message);
+        return;
+    }
+
+    // Solo borramos lo que se ha guardado (por si alguien añade algo justo ahora)
+    const { error: errorBorrar } = await client
+        .from("productos")
+        .delete()
+        .in("id", productos.map(p => p.id));
+
+    if (errorBorrar) {
+        console.error(errorBorrar);
+        alert(errorBorrar.message);
+    }
+
+    await cargar();
+    avisar("Compra guardada en Registros");
+}
+
+btnCompraHecha.addEventListener("click", compraHecha);
+
+/* ---------- Registros ---------- */
+
+const registrosUl = document.getElementById("registros");
+const registrosVacio = document.getElementById("registrosVacio");
+const registrosLista = document.getElementById("registrosLista");
+const registroDetalle = document.getElementById("registroDetalle");
+const detalleFecha = document.getElementById("detalleFecha");
+const detalleInfo = document.getElementById("detalleInfo");
+const regFilters = document.getElementById("regFilters");
+const regItems = document.getElementById("regItems");
+const regVacio = document.getElementById("regVacio");
+const regVacioText = document.getElementById("regVacioText");
+
+let registros = [];
+let registroAbierto = null;
+let filtroRegistro = "todos";
+
+const fmtDia = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long" });
+const fmtDiaAnio = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+const fmtHora = new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit" });
+
+function fechaBonita(iso) {
+    const d = new Date(iso);
+    const fmt = d.getFullYear() === new Date().getFullYear() ? fmtDia : fmtDiaAnio;
+    const dia = fmt.format(d);
+    return { dia: dia[0].toUpperCase() + dia.slice(1), hora: fmtHora.format(d) };
+}
+
+async function cargarRegistros() {
+    const { data, error } = await client
+        .from("registros")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+    if (error) {
+        console.error(error);
+        alert(error.message);
+        return;
+    }
+
+    registros = data || [];
+
+    if (registroAbierto) {
+        registroAbierto = registros.find(r => r.id === registroAbierto.id) || null;
+        if (registroAbierto) pintarDetalle();
+        else cerrarDetalle();
+    }
+
+    pintarRegistros();
+}
+
+function pintarRegistros() {
+    if (pestana === "registros" && !registroAbierto) {
+        summary.textContent = registros.length === 1
+            ? "1 compra guardada"
+            : `${registros.length} compras guardadas`;
+    }
+
+    registrosVacio.classList.toggle("hidden", registros.length > 0);
+
+    registrosUl.replaceChildren(...registros.map(reg => {
+        const productos = reg.productos || [];
+        const { dia, hora } = fechaBonita(reg.created_at);
+
+        const porSuper = Object.keys(SUPERMERCADOS)
+            .map(id => [id, productos.filter(p => superDe(p) === id).length])
+            .filter(([, n]) => n > 0)
+            .map(([id, n]) => `<span class="super-tag" style="--c:${SUPERMERCADOS[id].color}">${SUPERMERCADOS[id].nombre} ${n}</span>`)
+            .join("");
+
+        const li = document.createElement("li");
+        li.innerHTML = `
+            <button class="registro">
+                <span class="registro-main">
+                    <span class="registro-fecha">${dia}</span>
+                    <span class="registro-meta">
+                        ${hora} · ${productos.length} ${productos.length === 1 ? "producto" : "productos"}
+                        ${reg.usuario ? `· ${etiquetaUsuario(reg.usuario)}` : ""}
+                    </span>
+                    <span class="registro-supers">${porSuper}</span>
+                </span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+        `;
+        li.querySelector("button").addEventListener("click", () => abrirDetalle(reg));
+        return li;
+    }));
+}
+
+function abrirDetalle(reg) {
+    registroAbierto = reg;
+    filtroRegistro = "todos";
+    registrosLista.classList.add("hidden");
+    registroDetalle.classList.remove("hidden");
+    pintarDetalle();
+    window.scrollTo(0, 0);
+}
+
+function cerrarDetalle() {
+    registroAbierto = null;
+    registroDetalle.classList.add("hidden");
+    registrosLista.classList.remove("hidden");
+    pintarRegistros();
+}
+
+document.getElementById("btnVolver").addEventListener("click", cerrarDetalle);
+
+function pintarDetalle() {
+    const reg = registroAbierto;
+    const productos = reg.productos || [];
+    const { dia, hora } = fechaBonita(reg.created_at);
+
+    detalleFecha.textContent = `${dia}, ${hora}`;
+    detalleInfo.innerHTML = reg.usuario ? `Compra hecha por ${etiquetaUsuario(reg.usuario)}` : "";
+
+    const comprados = productos.filter(p => p.comprado).length;
+    summary.textContent = comprados === productos.length
+        ? `${productos.length} ${productos.length === 1 ? "producto" : "productos"}`
+        : `${comprados} de ${productos.length} comprados`;
+
+    crearFiltros(regFilters, filtroRegistro,
+        id => productos.filter(p => id === "todos" || superDe(p) === id).length,
+        id => { filtroRegistro = id; pintarDetalle(); });
+
+    const visibles = productos
+        .filter(p => filtroRegistro === "todos" || superDe(p) === filtroRegistro)
+        // primero lo comprado, después lo que se quedó sin comprar
+        .sort((a, b) => (b.comprado === true) - (a.comprado === true));
+
+    regItems.replaceChildren(...visibles.map(p => {
+        const li = document.createElement("li");
+        li.className = "item reg-item" + (p.comprado ? "" : " no-comprado");
+        li.innerHTML = `
+            <span class="reg-icon">${p.comprado
+                ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-label="Comprado"><path d="M20 6 9 17l-5-5"/></svg>`
+                : ""}</span>
+            <span class="name">${escapar(p.nombre)}${etiquetaSuper(p.supermercado)}${p.comprado ? "" : `<span class="no-comprado-tag">No comprado</span>`}</span>
+            ${etiquetaUsuario(p.usuario)}
+        `;
+        return li;
+    }));
+
+    regVacio.classList.toggle("hidden", visibles.length > 0);
+    regVacioText.textContent = filtroRegistro === "todos"
+        ? "Esta compra no tiene productos."
+        : `En esta compra no hubo nada del ${SUPERMERCADOS[filtroRegistro].nombre}.`;
+}
+
 /*
     Si activas Realtime en Supabase,
     la lista se actualizará automáticamente
@@ -354,6 +631,15 @@ client
             table: "productos"
         },
         () => cargar()
+    )
+    .on(
+        "postgres_changes",
+        {
+            event: "*",
+            schema: "public",
+            table: "registros"
+        },
+        () => { if (pestana === "registros") cargarRegistros(); }
     )
     .subscribe();
 
