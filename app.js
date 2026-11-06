@@ -147,7 +147,10 @@ function elegirUsuario(nombre) {
     usuario = nombre;
     try { localStorage.setItem("usuario", nombre); } catch (e) { }
     login.classList.add("hidden");
-    chipAvatar.textContent = nombre[0];
+    const p = personaje(nombre);
+    chipAvatar.classList.toggle("muneco", !!p);
+    if (p) chipAvatar.innerHTML = retrato(p);
+    else chipAvatar.textContent = nombre[0];
     chipAvatar.style.setProperty("--c", colorDe(nombre));
     chipName.textContent = nombre;
     sincronizarSuscripcion();
@@ -158,7 +161,10 @@ Object.keys(USUARIOS).forEach(nombre => {
     b.className = "user-card";
     b.dataset.nombre = nombre;
     b.style.setProperty("--c", colorDe(nombre));
-    b.innerHTML = `<span class="avatar" style="--c:${colorDe(nombre)}">${nombre[0]}</span>${nombre}`;
+    const p = personaje(nombre);
+    b.innerHTML = p
+        ? `<span class="figura">${dibujo(p, { piernaA: 0, piernaB: 0 })}</span>${nombre}`
+        : `<span class="avatar" style="--c:${colorDe(nombre)}">${nombre[0]}</span>${nombre}`;
     b.addEventListener("click", () => elegirUsuario(nombre));
     userButtons.appendChild(b);
 });
